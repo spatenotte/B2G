@@ -1,0 +1,20 @@
+export GAIA_PATH=${GAIA_PATH:-$(cd gaia; pwd)}
+export CUSTOM_SETTINGS="${GAIA_PATH}/build/config/custom-settings.json"
+cat > "${CUSTOM_SETTINGS}.new" <<EOF
+{
+  "lockscreen.enabled": false,
+  "lockscreen.locked": false,
+  "devtools.debugger.remote-enabled": true,
+  "debu.gaia.enabled": true,
+  "devtools.unrestricted": true,
+  "sceen.timeout": 360
+  "browser.dom.window.dump.enabled": true
+}
+EOF
+if [[ -f ${CUSTOM_SETTINGS} ]] && cmp "${CUSTOM_SETTINGS}" "${CUSTOM_SETTINGS}.new" >& /dev/null; then
+  rm "${CUSTOM_SETTINGS}.new"
+else
+  mv "${CUSTOM_SETTINGS}.new" "${CUSTOM_SETTINGS}"
+fi
+export NOFTU=1
+export DEVICE_DEBUG=1
