@@ -1061,7 +1061,31 @@ class FlashFotaBuilder(object):
 
         self.generator.Print("Cleaning FOTA files")
         self.generator.DeleteFilesRecursive(staleUpdateFiles)
-        self.generator.Print("FOTA files removed")
+
+        self.generator.Print("FOTA cleanup finished")
+
+    def CleanDeviceFiles(self):
+        """
+        Devices might need some cleanup after installation ...
+        """
+
+        # Device-specific files that we need to cleanup
+        # Should be specified as a space-separated list of files in
+        # the env variable FOTA_DEVICE_DATA_FILES
+        if not os.environ.has_key("FOTA_DEVICE_DATA_FILES"):
+            return
+
+        files = os.environ.get("FOTA_DEVICE_DATA_FILES")
+        if len(files) < 1:
+            return
+
+        deviceCleanup = filter(lambda x: len(x) > 0, files.split(" "))
+
+        # sdcard will already be mounted anyway
+        self.AssertMountIfNeeded("/data")
+        self.generator.Print("Cleaning device specific files")
+        self.generator.DeleteFiles(deviceCleanup)
+        self.generator.Print("Device specific cleanup finished")
 
     def Umount(self, mount_point):
         """
@@ -1234,12 +1258,18 @@ class FlashFotaBuilder(object):
         cmd = ('set_progress(0.25);')
         self.generator.script.append(self.generator._WordWrap(cmd))
 
+        # We need /system for reading props from build.prop
+        self.AssertMountIfNeeded("/system")
+
         # We do not want to check the device/model when we are checking fingerprints.
         if self.fota_check_device_name and not self.fota_check_fingerprints:
             self.AssertDeviceOrModel(self.fota_check_device_name)
         else:
             if self.fota_check_fingerprints:
                 self.AssertFingerprints()
+
+        # We do not need that anymore for now, let's unmount
+        self.Umount("/system")
 
         # This method is responsible for checking the partitions we want to format
         self.FormatAll()
@@ -1281,7 +1311,7 @@ class FlashFotaBuilder(object):
             self.generator.Print("Extracting files to /system")
             self.generator.UnpackPackageDir("system", "/system")
 
-            cmd = ('set_progress(0.75);')
+            cmd = ('set_progress(0.65);')
             self.generator.script.append(self.generator._WordWrap(cmd))
 
             self.generator.Print("Creating symlinks")
@@ -1290,7 +1320,7 @@ class FlashFotaBuilder(object):
             self.generator.Print("Setting file permissions")
             self.build_permissions()
 
-            cmd = ('set_progress(0.8);')
+            cmd = ('set_progress(0.7);')
             self.generator.script.append(self.generator._WordWrap(cmd))
             self.generator.Print("Cleaning update files")
             self.CleanUpdateFiles()
@@ -1299,7 +1329,7 @@ class FlashFotaBuilder(object):
                 cmd = ('else ui_print("Restoring previous stale update."); endif;')
                 self.generator.script.append(self.generator._WordWrap(cmd))
 
-            cmd = ('set_progress(0.9);')
+            cmd = ('set_progress(0.8);')
             self.generator.script.append(self.generator._WordWrap(cmd))
 
             self.generator.Print("Unmounting ...")
@@ -1311,6 +1341,14 @@ class FlashFotaBuilder(object):
                 self.FlashPartition(part, file)
             except ValueError as e:
                 pass
+
+        cmd = ('set_progress(0.9);')
+        self.generator.script.append(self.generator._WordWrap(cmd))
+        self.generator.Print("Cleaning device-specific files")
+        self.CleanDeviceFiles()
+
+        self.generator.Print("Unmounting ...")
+        self.generator.UnmountAll()
 
         cmd = ('set_progress(1.0);')
         self.generator.script.append(self.generator._WordWrap(cmd))
