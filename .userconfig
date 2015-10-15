@@ -7,7 +7,7 @@ cat > "${CUSTOM_SETTINGS}.new" <<EOF
   "devtools.debugger.remote-enabled": true,
   "debu.gaia.enabled": true,
   "devtools.unrestricted": true,
-  "sceen.timeout": 360
+  "sceen.timeout": 360,
   "browser.dom.window.dump.enabled": true
 }
 EOF
